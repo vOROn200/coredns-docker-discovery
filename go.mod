@@ -1,4 +1,4 @@
-module github.com/voron200/coredns-docker-discovery
+module github.com/vOROn200/coredns-docker-discovery
 
 go 1.23.5
 
