@@ -42,8 +42,8 @@ How To Build
 
 Alternatively, run insider docker container
 
-    docker build -t coredns-dockerdiscovery .
-    docker run --rm -v ${PWD}/Corefile:/etc/Corefile -v /var/run/docker.sock:/var/run/docker.sock -p 53:53/udp coredns-docker-discovery -conf /etc/Corefile
+    docker build -t coredns-docker-discovery .
+    docker run --rm -v ${PWD}/Corefile:/etc/Corefile -v /var/run/docker.sock:/var/run/docker.sock -p 15353:15353/udp coredns-docker-discovery -conf /etc/Corefile
 
 Run tests
 
