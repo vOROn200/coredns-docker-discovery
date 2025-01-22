@@ -22,15 +22,15 @@ WORKDIR /go/src/github.com/coredns/coredns
 ADD plugin.cfg plugin.cfg
 
 # Generate code and build CoreDNS
-RUN make gen all
+RUN CGO_ENABLED=0 make gen all
 
 # Install binutils to use 'strip' for reducing binary size and strip the binary
-RUN strip -v /go/src/github.com/coredns/coredns/coredns
+# RUN strip -v /go/src/github.com/coredns/coredns/coredns
 
-RUN setcap cap_net_bind_service=+ep /go/src/github.com/coredns/coredns/coredns
+# RUN setcap cap_net_bind_service=+ep /go/src/github.com/coredns/coredns/coredns
 
 # ====== Stage 2: Final Image ======
-FROM gcr.io/distroless/base-debian12:nonroot
+FROM debian:buster-slim
 
 # Copy CA certificates from the builder stage to support HTTPS
 COPY --from=builder /etc/ssl/certs /etc/ssl/certs
@@ -44,5 +44,5 @@ ADD Corefile /etc/Corefile
 EXPOSE 53 53/udp
 
 # Set the entrypoint to the CoreDNS binary
-ENTRYPOINT ["/usr/local/bin/coredns"]
+ENTRYPOINT ["coredns"]
 CMD ["-conf", "/etc/Corefile"]

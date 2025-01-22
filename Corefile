@@ -1,9 +1,10 @@
-.:53 {
-
-    docker unix:///var/run/docker.sock {
-        domain docker.loc
-        hostname_domain docker-host.loc
-    }
+loc {
     log
     errors
+    docker unix:///var/run/docker.sock {
+        domain docker.loc
+    }
+}
+. {
+    forward . 1.1.1.1
 }
