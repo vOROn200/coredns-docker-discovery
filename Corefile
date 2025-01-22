@@ -1,7 +1,8 @@
-loc:15353 {
+.:15353 {
     log
     errors
     docker unix:///var/run/docker.sock {
         domain docker.loc
     }
+    forward   . /etc/resolv.conf
 }

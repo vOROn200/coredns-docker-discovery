@@ -32,12 +32,13 @@ You'll need a Corefile to configure CoreDNS and the `dockerdiscovery` plugin.  H
 
 ```
 # Corefile
-loc:15353 {
+.:15353 {
     log
     errors
     docker {
         domain docker.loc
     }
+    forward   . /etc/resolv.conf
 }
 ```
 
@@ -110,13 +111,14 @@ docker [DOCKER_ENDPOINT] {
 **1. Corefile (e.g., `Corefile` ):**
 
 ```
-loc:15353 {
+.:15353 {
     log
     errors
     docker {
         domain docker.loc
         hostname_domain docker-host.loc
     }
+    forward   . /etc/resolv.conf
 }
 ```
 
