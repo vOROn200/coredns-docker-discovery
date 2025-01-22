@@ -1,10 +1,7 @@
-loc {
+loc:15353 {
     log
     errors
     docker unix:///var/run/docker.sock {
         domain docker.loc
     }
-}
-. {
-    forward . 1.1.1.1 8.8.8.8 1.0.0.1 8.8.4.4
 }
