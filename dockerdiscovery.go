@@ -96,10 +96,10 @@ func (dd *DockerDiscovery) ServeDNS(ctx context.Context, w dns.ResponseWriter, r
 			// in acordance with https://tools.ietf.org/html/rfc6147#section-5.1.2 we should return an empty answer section if no AAAA records are available and a A record is available when the client requested AAAA
 			record := new(dns.AAAA)
 			record.Hdr = dns.RR_Header{
-				Name:   state.Name(),
-				Rrtype: dns.TypeAAAA,
-				Class:  dns.ClassINET,
-				Ttl:    dd.ttl,
+				Name:     state.Name(),
+				Rrtype:   dns.TypeAAAA,
+				Class:    dns.ClassINET,
+				Ttl:      dd.ttl,
 				Rdlength: 0,
 			}
 			answers = append(answers, record)
