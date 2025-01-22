@@ -1,122 +1,211 @@
-coredns-docker-discovery
-===================================
+# coredns-docker-discovery
 
-Docker discovery plugin for coredns
+**Docker Discovery Plugin for CoreDNS**
 
-Name
-----
+[![Docker Pulls](https://img.shields.io/docker/pulls/voron200/coredns-docker-discovery)](https://hub.docker.com/r/voron200/coredns-docker-discovery)
 
-dockerdiscovery - add/remove DNS records for docker containers.
+## Description
 
-Syntax
-------
+`coredns-docker-discovery` is a CoreDNS plugin that automatically manages DNS records for your Docker containers. It dynamically adds and removes DNS entries as containers are started and stopped, making service discovery within Docker environments seamless.
 
-    docker [DOCKER_ENDPOINT] {
-        domain DOMAIN_NAME
-        hostname_domain HOSTNAME_DOMAIN_NAME
-        network_aliases DOCKER_NETWORK
-        label LABEL
-        compose_domain COMPOSE_DOMAIN_NAME
+This plugin allows you to resolve Docker containers by:
+
+* **Container Name:**  Using the container's `--name` as a subdomain.
+* **Hostname:** Using the container's `--hostname` as a subdomain.
+* **Docker Compose Project & Service Names:** For containers managed by Docker Compose.
+* **Network Aliases:** Leveraging Docker network aliases for resolution within a specific network.
+* **Labels:**  Resolving containers based on custom labels.
+
+## Getting Started - Docker Usage
+
+The easiest way to use `coredns-docker-discovery` is by running the pre-built Docker image. This eliminates the need to build CoreDNS and the plugin manually.
+
+**1. Pull the Docker Image:**
+
+```bash
+docker pull voron200/coredns-docker-discovery:latest
+```
+
+**2. Create a Corefile:**
+
+You'll need a Corefile to configure CoreDNS and the `dockerdiscovery` plugin.  Here's a basic example that listens on port 15353 and uses `dockerdiscovery` for the `loc` domain:
+
+```
+# Corefile
+loc:15353 {
+    log
+    errors
+    docker {
+        domain docker.loc
     }
+}
+```
 
-* `DOCKER_ENDPOINT`: the path to the docker socket. If unspecified, defaults to `unix:///var/run/docker.sock`. It can also be TCP socket, such as `tcp://127.0.0.1:999`.
-* `DOMAIN_NAME`: the name of the domain for [container name](https://docs.docker.com/engine/reference/run/#name---name), e.g. when `DOMAIN_NAME` is `docker.loc`, your container with `my-nginx` (as subdomain) [name](https://docs.docker.com/engine/reference/run/#name---name) will be assigned the domain name: `my-nginx.docker.loc`
-* `HOSTNAME_DOMAIN_NAME`: the name of the domain for [hostname](https://docs.docker.com/config/containers/container-networking/#ip-address-and-hostname). Work same as `DOMAIN_NAME` for hostname.
-* `COMPOSE_DOMAIN_NAME`: the name of the domain when it is determined the
-    container is managed by docker-compose.  e.g. for a compose project of
-    "internal" and service of "nginx", if `COMPOSE_DOMAIN_NAME` is
+**3. Run the CoreDNS Docker Container:**
 
-`compose.loc` the fqdn will be `nginx.internal.compose.loc`
+Mount your Corefile and the Docker socket into the container.  Make sure to expose the desired port (e.g., 15353/UDP) for DNS queries.
 
-* `DOCKER_NETWORK`: the name of the docker network. Resolve directly by [network aliases](https://docs.docker.com/v17.09/engine/userguide/networking/configure-dns) (like internal docker dns resolve host by aliases whole network)
-* `LABEL`: container label of resolving host (by default enable and equals ```coredns.dockerdiscovery.host```)
+```bash
+docker run -d \
+  --name coredns-docker-discovery \
+  -v ${PWD}/Corefile:/etc/Corefile \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -p 15353:15353/udp \
+  voron200/coredns-docker-discovery -conf /etc/Corefile
+```
 
-How To Build
-------------
+**Explanation:**
 
-1. Checkout coredns:  `git clone https://github.com/coredns/coredns --depth=1 ./go/src/github.com/coredns/coredns`.
-2. `cd go/src/github.com/coredns/coredns`
-3. `echo "docker:github.com/vOROn200/coredns-docker-discovery" >> plugin.cfg`
-4. `go generate`
-5. `CGO_ENABLED=1 make gen all`
+* `-d`: Runs the container in detached mode (background).
+* `--name coredns-docker-discovery`: Assigns a name to the container.
+* `-v ${PWD}/Corefile:/etc/Corefile`: Mounts your local `Corefile` to `/etc/Corefile` inside the container.
+* `-v /var/run/docker.sock:/var/run/docker.sock`:  Mounts the Docker socket, allowing CoreDNS to communicate with the Docker daemon. **This is crucial for Docker discovery to work.**
+* `-p 15353:15353/udp`:  Maps port 15353 on the host to port 15353 (UDP) in the container.  This is the port CoreDNS will listen on for DNS queries.
+* `voron200/coredns-docker-discovery -conf /etc/Corefile`: Specifies the Docker image to use and tells CoreDNS to use the Corefile at `/etc/Corefile`.
 
-Alternatively, run insider docker container
+## Configuration - Corefile Syntax
 
-    docker build -t coredns-docker-discovery .
-    docker run --rm -v ${PWD}/Corefile:/etc/Corefile -v /var/run/docker.sock:/var/run/docker.sock -p 15353:15353/udp coredns-docker-discovery -conf /etc/Corefile
+Within your Corefile, use the `docker` plugin block to configure Docker discovery:
 
-Run tests
+```
+docker [DOCKER_ENDPOINT] {
+    domain DOMAIN_NAME
+    hostname_domain HOSTNAME_DOMAIN_NAME
+    network_aliases DOCKER_NETWORK
+    label LABEL
+    compose_domain COMPOSE_DOMAIN_NAME
+}
+```
 
-    go test -v
+**Parameters:**
 
-Example
--------
+* **`DOCKER_ENDPOINT` (Optional):**
+    - Path to the Docker socket. Defaults to `unix:///var/run/docker.sock`.
+    - Can also be a TCP socket (e.g., `tcp://127.0.0.1:999`).
+    - **When running CoreDNS inside Docker, you typically mount `/var/run/docker.sock` and can omit this parameter, using the default.**
 
-`Corefile` :
+* **`domain DOMAIN_NAME` (Required):**
+    - The base domain for container names.
+    - Example: `domain docker.loc` will resolve containers named `my-nginx` as `my-nginx.docker.loc`.
 
-    loc {
-        log
-        errors
-        docker unix:///var/run/docker.sock {
-            domain docker.loc
-        }
+* **`hostname_domain HOSTNAME_DOMAIN_NAME` (Optional):**
+    - The base domain for container hostnames.
+    - Example: `hostname_domain docker-host.loc` will resolve containers with hostname `alpine` as `alpine.docker-host.loc`.
+
+* **`compose_domain COMPOSE_DOMAIN_NAME` (Optional):**
+    - The base domain for Docker Compose projects and services.
+    - For a Compose project named "internal" and service "nginx", with `compose_domain compose.loc`, the FQDN will be `nginx.internal.compose.loc`.
+
+* **`network_aliases DOCKER_NETWORK` (Optional):**
+    - The name of a Docker network.
+    - Resolves containers directly using Docker network aliases within the specified network.
+
+* **`label LABEL` (Optional):**
+    - Container label used for resolution.
+    - Defaults to `coredns.dockerdiscovery.host`.
+    - If defined, containers with this label will be resolved using the label's value as the hostname within the configured domain.
+
+## Example Usage
+
+**1. Corefile (e.g., `Corefile` ):**
+
+```
+loc:15353 {
+    log
+    errors
+    docker {
+        domain docker.loc
+        hostname_domain docker-host.loc
     }
+}
+```
 
-Start CoreDNS:
+**2. Start CoreDNS (using the Docker image as described in "Getting Started - Docker Usage").**
 
-    $ ./coredns
-    .:53
-    loc.:53
-    CoreDNS-1.12.0
-    linux/arm64, go1.23.5, 51e11f1-dirty
+**3. Start a Docker Container (with a name and hostname):**
 
-Start a docker container:
+```bash
+docker run -d --name my-alpine --hostname alpine alpine sleep 1000
+```
 
-    $ docker run -d --name my-alpine --hostname alpine alpine sleep 1000
-    78c2a06ef2a9b63df857b7985468f7310bba0d9ea4d0d2629343aff4fd171861
+**4. Resolve the Container:**
 
-Use CoreDNS as your resolver to resolve the `my-alpine.docker.loc` or `alpine.docker-host.loc` :
+Use `dig` or `nslookup` to query CoreDNS (running at `localhost:15353` in this example):
 
-    $ dig @localhost my-alpine.docker.loc
+```bash
+dig @localhost -p 15353 my-alpine.docker.loc
+dig @localhost -p 15353 alpine.docker-host.loc
+```
 
-    ; <<>> DiG 9.10.3-P4-Ubuntu <<>> @localhost my-alpine.docker.loc
-    ; (1 server found)
-    ;; global options: +cmd
-    ;; Got answer:
-    ;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 61786
-    ;; flags: qr aa rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
+You should see an `ANSWER SECTION` in the `dig` output containing the container's IP address.
 
-    ;; OPT PSEUDOSECTION:
-    ; EDNS: version: 0, flags:; udp: 4096
+**5. Docker Compose Example:**
 
-    ;; QUESTION SECTION:
-    ;my-alpine.docker.loc.            IN      A
+Assume you have a Docker Compose project named "my-project" and a service called "web". With the `compose_domain compose.loc` configured, you can resolve the service as `web.my-project.compose.loc` .
 
-    ;; ANSWER SECTION:
-    my-alpine.docker.loc.     3600    IN      A       172.17.0.2
+**6. Label-based Resolution:**
 
-    ;; Query time: 0 msec
-    ;; SERVER: 127.0.0.1#15353(127.0.0.1)
-    ;; WHEN: Thu Apr 26 22:39:55 EDT 2018
-    ;; MSG SIZE  rcvd: 63
+Start a container with a label:
 
-Stop the docker container will remove the corresponded DNS entries:
+```bash
+docker run -d --label=coredns.dockerdiscovery.host=nginx.web.loc nginx
+```
 
-    $ docker stop my-alpine
-    78c2a
+With the default label configuration, you can now resolve this container as `nginx.web.loc` .
 
-    $ dig @localhost -p 15353 my-alpine.docker.loc
+## Building from Source (Optional)
 
-    ;; QUESTION SECTION:
-    ;my-alpine.docker.loc.            IN      A
+If you wish to build the plugin from source (for development or customization):
 
-Container will be resolved by label as ` `  ` nginx.loc `  ` `
+**Prerequisites:**
 
-    docker run --label=coredns.dockerdiscovery.host=nginx.loc nginx
+* Go (version specified in CoreDNS documentation)
+* Git
+* Docker (for building the Docker image)
 
- See receipt [how install for local development](setup.md)
+**Steps:**
 
-### Acknowledgements
+1. **Clone CoreDNS:**
+   
 
-This started as a fork of [github.com/kevinjqiu/coredns-dockerdiscovery](https://github.com/kevinjqiu/coredns-dockerdiscovery.git).
-We thank the original authors for their work.
+```bash
+   git clone https://github.com/coredns/coredns --depth=1 ./go/src/github.com/coredns/coredns
+   ```
+
+2. **Navigate to CoreDNS directory:**
+   
+
+```bash
+   cd go/src/github.com/coredns/coredns
+   ```
+
+3. **Add plugin to `plugin.cfg`:**
+   
+
+```bash
+   echo "docker:github.com/vOROn200/coredns-docker-discovery" >> plugin.cfg
+   ```
+
+4. **Generate plugin code:**
+   
+
+```bash
+   go generate
+   ```
+
+5. **Build CoreDNS:**
+   
+
+```bash
+   CGO_ENABLED=1 make gen all
+   ```
+
+**Running Tests:**
+
+```bash
+go test -v github.com/vOROn200/coredns-docker-discovery
+```
+
+## Acknowledgements
+
+This plugin is based on and inspired by [github.com/kevinjqiu/coredns-dockerdiscovery](https://github.com/kevinjqiu/coredns-dockerdiscovery.git). We thank the original authors for their valuable work.

@@ -39,7 +39,7 @@ COPY --from=builder /go/src/github.com/coredns/coredns/coredns /usr/local/bin/co
 ADD Corefile /etc/Corefile
 
 # Expose DNS ports (both TCP and UDP)
-EXPOSE 53 53/udp
+EXPOSE 15353 15353/udp
 
 # Set the entrypoint to the CoreDNS binary
 ENTRYPOINT ["coredns"]
