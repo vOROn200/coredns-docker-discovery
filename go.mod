@@ -1,6 +1,6 @@
 module github.com/vOROn200/coredns-docker-discovery
 
-go 1.23.5
+go 1.23.3
 
 require (
 	github.com/coredns/caddy v1.1.2-0.20241029205200-8de985351a98
