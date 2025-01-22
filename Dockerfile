@@ -10,7 +10,7 @@ ENV CGO_ENABLED=1 \
     COREDNS_VERS=1.12.0
 
 # Install build dependencies
-RUN apk update && apk add --no-cache build-base git make binutils
+RUN apk update && apk add --no-cache build-base git make binutils libcap ca-certificates
 
 # Clone the CoreDNS repository
 RUN git clone --branch v${COREDNS_VERS} https://github.com/coredns/coredns.git --depth=1 /go/src/github.com/coredns/coredns
@@ -25,30 +25,24 @@ ADD plugin.cfg plugin.cfg
 RUN make gen all
 
 # Install binutils to use 'strip' for reducing binary size and strip the binary
-RUN apk add --no-cache binutils && \
-    strip -v /usr/local/bin/coredns
+RUN strip -v /go/src/github.com/coredns/coredns/coredns
+
+RUN setcap cap_net_bind_service=+ep /go/src/github.com/coredns/coredns/coredns
 
 # ====== Stage 2: Final Image ======
-FROM alpine:${ALPINE_VERS}
+FROM gcr.io/distroless/base-debian12:nonroot
 
-# Install CA certificates for HTTPS support
-RUN apk --no-cache add ca-certificates
+# Copy CA certificates from the builder stage to support HTTPS
+COPY --from=builder /etc/ssl/certs /etc/ssl/certs
 
 # Copy the CoreDNS binary from the builder stage
-COPY --from=builder /usr/local/bin/coredns /usr/local/bin/coredns
+COPY --from=builder /go/src/github.com/coredns/coredns/coredns /usr/local/bin/coredns
 
-# Install libcap2-bin to set capabilities and allow binding to low ports
-RUN apk add --no-cache libcap2-bin && \
-    setcap cap_net_bind_service=+ep /usr/local/bin/coredns
+ADD Corefile /etc/Corefile
 
-# Switch to non-root user for security
-USER nonroot:nonroot
-
-# Set the working directory
-WORKDIR /
-
-# Expose DNS ports
+# Expose DNS ports (both TCP and UDP)
 EXPOSE 53 53/udp
 
 # Set the entrypoint to the CoreDNS binary
 ENTRYPOINT ["/usr/local/bin/coredns"]
+CMD ["-conf", "/etc/Corefile"]
