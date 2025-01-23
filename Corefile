@@ -2,7 +2,5 @@
     docker unix:///var/run/docker.sock {
         domain docker.loc
     }
-    forward   . /etc/resolv.conf
-    errors
     log
 }
