@@ -1,5 +1,5 @@
 .:15353 {
-    docker unix:///var/run/docker.sock {
+    docker {
         domain docker.loc
     }
     log
